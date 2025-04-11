@@ -1,6 +1,6 @@
 from transformers import AutoConfig
-from typing import Optional, Literal
-from pydantic import AliasPath, BaseModel, Field, AliasChoices, model_validator
+from typing import Optional, Self
+from pydantic import AliasPath, BaseModel, Field, AliasChoices, ValidationError, field_validator, model_validator
 import huggingface_hub
 from huggingface_hub.constants import (
     SAFETENSORS_INDEX_FILE,
@@ -13,6 +13,9 @@ from tqdm.contrib.concurrent import thread_map
 import os
 import json
 import struct
+
+from tensorrt_llm._torch.model_config import ModelConfig as TllmModelConfig
+from tensorrt_llm._utils import str_dtype_to_torch
 
 
 def parse_safetensors_file_metadata(model_path, filename):
@@ -116,6 +119,7 @@ class ModelConfig(BaseModel):
         setting calculation.
     """
     name: str
+    model_path: Optional[str] = None
     param_count: int
     num_hidden_layers: int = Field(validation_alias=AliasChoices(
         "num_hidden_layers",
@@ -153,16 +157,41 @@ class ModelConfig(BaseModel):
             "n_positions",
             AliasPath("text_config", "max_position_embeddings"),
         ))
-    dtype: Literal["float16", "bfloat16",
-                   None] = Field(default="float16",
-                                 validation_alias=AliasChoices(
-                                     "dtype", "torch_dtype"))
+    dtype: Optional[torch.dtype] = Field(default=torch.float16,
+                                         validation_alias=AliasChoices(
+                                             "dtype",
+                                             "torch_dtype",
+                                             AliasPath("text_config",
+                                                       "torch_dtype"),
+                                         ))
+
+    _tllm_config: Optional[TllmModelConfig] = Field(default=None,
+                                                    include=False,
+                                                    init=False)
+
+    @field_validator("dtype")
+    def validate_dtype(self, value: Union[str, torch.dtype]) -> torch.dtype:
+        if isinstance(value, torch.dtype):
+            pass
+        elif isinstance(value, str):
+            value = str_dtype_to_torch(value)
+        else:
+            raise ValidationError(
+                f"'{value}' is of type '{type(value)}. Cannot convert to torch.dtype.'"
+            )
+        return value
 
     @model_validator(mode="after")
-    def set_values_if_none(self):
+    def set_tllm_config(self) -> Self:
+        self._tllm_config = TllmModelConfig.from_pretrained(
+            self.model_path or self.name, trust_remote_code=True)
+        return self
+
+    @model_validator(mode="after")
+    def set_values_if_none(self) -> Self:
         """ Set the values if cannot get values from HF config.json. """
         if not self.dtype:  # for GPT-J
-            self.dtype = "float16"
+            self.dtype = torch.float16
         if self.num_key_value_heads is None:
             self.num_key_value_heads = self.num_attention_heads
         if self.head_size is None:

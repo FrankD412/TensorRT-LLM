@@ -6,6 +6,7 @@ from typing import Any, Dict, List, NamedTuple
 
 from tensorrt_llm._torch.pyexecutor.model_engine import \
     validate_and_set_kv_cache_quant
+from tensorrt_llm.bench.build.dataclasses import ModelConfig
 from tensorrt_llm.bench.dataclasses.configuration import RuntimeConfig
 from tensorrt_llm.bench.dataclasses.general import DatasetMetadata
 from tensorrt_llm.bench.dataclasses.statistics import (BenchmarkStatistics,
@@ -212,7 +213,7 @@ class ReportUtility:
         return self.convert_rate_to_s(
             self.statistics.output_throughput_tok_ns_per_user)
 
-    def get_statistics_dict(self) -> Dict[str, Any]:
+    def get_statistics_dict(self, model_config: ModelConfig) -> Dict[str, Any]:
         """Get statistics as a dictionary.
 
         Returns:
@@ -250,25 +251,19 @@ class ReportUtility:
                 build_cfg["max_seq_len"]
             }
         else:
-            from tensorrt_llm._torch.model_config import ModelConfig
-            from tensorrt_llm._utils import torch_dtype_to_str
-
             model = self.rt_cfg.model_path or self.rt_cfg.model
-            model_config = ModelConfig.from_pretrained(model,
-                                                       trust_remote_code=True)
+            tllm_model_config = TllmModelConfig.from_pretrained(
+                model, trust_remote_code=True)
             validate_and_set_kv_cache_quant(
-                model_config,
+                tllm_model_config,
                 self.kwargs["pytorch_backend_config"].kv_cache_dtype)
 
             stats_dict["engine"] |= {
-                "backend":
-                "Pytorch",
-                "dtype":
-                torch_dtype_to_str(model_config.pretrained_config.torch_dtype),
+                "backend": "Pytorch",
+                "dtype": torch_dtype_to_str(model_config.dtype),
                 "kv_cache_dtype":
-                model_config.quant_config.kv_cache_quant_algo,
-                "quantization":
-                model_config.quant_config.quant_algo
+                tllm_model_config.quant_config.kv_cache_quant_algo,
+                "quantization": tllm_model_config.quant_config.quant_algo
             }
 
         # World and runtime info
