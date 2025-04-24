@@ -330,7 +330,7 @@ def throughput_command(
     if config_dump_path is not None:
         logger.info(f"Dumping runtime configuration to '{config_dump_path}'...")
         with open(config_dump_path, "w") as f:
-            yaml.dump(kwargs.model_dump(), f)
+            yaml.dump(kwargs, f)
         logger.info("Dumped runtime configuration. Exiting.")
         return
 
