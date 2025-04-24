@@ -238,7 +238,7 @@ def throughput_command(
     report_json: Path = params.pop("report_json")
     iteration_log: Path = params.pop("iteration_log")
     iteration_writer = IterationWriter(iteration_log)
-    config_dump_path: Optional[Path] = params.pop("config_dump_path")
+    config_dump_path: Optional[Path] = params.pop("config_dump_path", None)
 
     # Runtime kwargs and option tracking.
     kwargs = {}
