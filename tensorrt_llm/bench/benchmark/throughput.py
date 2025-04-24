@@ -27,6 +27,7 @@ from tensorrt_llm.bench.utils.data import (create_dataset_from_stream,
                                            initialize_tokenizer,
                                            update_metadata_for_multimodal)
 from tensorrt_llm.llmapi import LLM, CapacitySchedulerPolicy
+from tensorrt_llm.llmapi.llm_utils import LlmArgs
 from tensorrt_llm.logger import logger
 from tensorrt_llm.sampling_params import SamplingParams
 
@@ -330,7 +331,8 @@ def throughput_command(
     if config_dump_path is not None:
         logger.info(f"Dumping runtime configuration to '{config_dump_path}'...")
         with open(config_dump_path, "w") as f:
-            yaml.dump(kwargs, f)
+            args = LlmArgs.from_kwargs(**kwargs)
+            yaml.dump(args.model_dump(), f)
         logger.info("Dumped runtime configuration. Exiting.")
         return
 
