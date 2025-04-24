@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Optional
 
 import click
+import yaml
 from click_option_group import (MutuallyExclusiveOptionGroup, OptionGroup,
                                 optgroup)
 
@@ -197,6 +199,18 @@ from tensorrt_llm.sampling_params import SamplingParams
     required=False,
     help="Path where iteration logging is written to.",
 )
+@optgroup.option(
+    "--dump_config_file",
+    type=click.Path(
+        dir_okay=False,
+        writable=True,
+        readable=False,
+        path_type=Path,
+        resolve_path=True,
+    ),
+    required=False,
+    help="Path to dump the runtime configuration.",
+)
 @click.pass_obj
 def throughput_command(
     bench_env: BenchmarkEnvironment,
@@ -224,9 +238,11 @@ def throughput_command(
     report_json: Path = params.pop("report_json")
     iteration_log: Path = params.pop("iteration_log")
     iteration_writer = IterationWriter(iteration_log)
+    config_dump_path: Optional[Path] = params.pop("config_dump_path")
 
     # Runtime kwargs and option tracking.
     kwargs = {}
+    llm = None
 
     # Initialize the HF tokenizer for the specified model.
     tokenizer = initialize_tokenizer(checkpoint_path)
@@ -304,15 +320,19 @@ def throughput_command(
 
     # Construct the runtime configuration dataclass.
     runtime_config = RuntimeConfig(**exec_settings)
-    llm = None
+
+    kwargs = kwargs | runtime_config.get_llm_args()
+    kwargs['backend'] = backend
+
+    if "pytorch_backend_config" in kwargs and iteration_log is not None:
+        kwargs["pytorch_backend_config"].enable_iter_perf_stats = True
+
+    if config_dump_path is not None:
+        with open(config_dump_path, "w") as f:
+            yaml.dump(kwargs.model_dump(), f)
+
     try:
         logger.info("Setting up throughput benchmark.")
-        kwargs = kwargs | runtime_config.get_llm_args()
-        kwargs['backend'] = backend
-
-        if "pytorch_backend_config" in kwargs and iteration_log is not None:
-            kwargs["pytorch_backend_config"].enable_iter_perf_stats = True
-
         if runtime_config.backend == 'pytorch':
             llm = PyTorchLLM(**kwargs)
         else:
