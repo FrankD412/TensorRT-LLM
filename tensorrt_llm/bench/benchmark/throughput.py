@@ -328,8 +328,11 @@ def throughput_command(
         kwargs["pytorch_backend_config"].enable_iter_perf_stats = True
 
     if config_dump_path is not None:
+        logger.info(f"Dumping runtime configuration to '{config_dump_path}'...")
         with open(config_dump_path, "w") as f:
             yaml.dump(kwargs.model_dump(), f)
+        logger.info("Dumped runtime configuration. Exiting.")
+        return
 
     try:
         logger.info("Setting up throughput benchmark.")
