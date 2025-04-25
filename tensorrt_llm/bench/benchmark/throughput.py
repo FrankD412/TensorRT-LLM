@@ -333,9 +333,15 @@ def throughput_command(
         with open(config_dump_path, "w") as f:
             args = LlmArgs.from_kwargs(**kwargs)
             yaml.dump(
-                args.model_dump(exclude_unset=True,
-                                exclude_defaults=True,
-                                exclude=lambda x: x.startswith('_')), f)
+                args.model_dump(
+                    exclude_unset=True,
+                    exclude_defaults=True,
+                    exclude={
+                        k
+                        for k in args.model_fields.keys()
+                        if k.startswith('_') or args.model_fields[k].exclude
+                    },
+                ), f)
         logger.info("Dumped runtime configuration. Exiting.")
         return
 
