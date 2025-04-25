@@ -86,7 +86,7 @@ def get_settings(params: dict, dataset_metadata: DatasetMetadata, model: str,
     kv_cache_dtype = "auto"
     if extra_llm_api_options:
         with open(extra_llm_api_options, 'r') as f:
-            llm_args_dict = yaml.safe_load(f)
+            llm_args_dict = yaml.load(f, Loader=yaml.UnsafeLoader)
             if "pytorch_backend_config" in llm_args_dict:
                 if "kv_cache_dtype" in llm_args_dict["pytorch_backend_config"]:
                     kv_cache_dtype = llm_args_dict["pytorch_backend_config"][
