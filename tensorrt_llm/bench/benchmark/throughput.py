@@ -332,13 +332,10 @@ def throughput_command(
         logger.info(f"Dumping runtime configuration to '{config_dump_path}'...")
         with open(config_dump_path, "w") as f:
             args = LlmArgs.from_kwargs(**kwargs)
-            # Only output user-facing keys by excluding internal fields
             yaml.dump(
-                args.model_dump(
-                    exclude={
-                        "_mpi_session", "_num_postprocess_workers",
-                        "_postprocess_tokenizer_dir"
-                    }), f)
+                args.model_dump(exclude_unset=True,
+                                exclude_defaults=True,
+                                exclude=lambda x: x.startswith('_')), f)
         logger.info("Dumped runtime configuration. Exiting.")
         return
 
