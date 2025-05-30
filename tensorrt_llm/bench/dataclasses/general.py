@@ -9,12 +9,6 @@ from pydantic import (AliasChoices, BaseModel, Field, computed_field,
 from tensorrt_llm.bench.dataclasses.statistics import PercentileStats
 
 
-class BenchmarkEnvironment(BaseModel):
-    model: str
-    checkpoint_path: Optional[Path]
-    workspace: Path
-
-
 class InferenceRequest(BaseModel):
     task_id: int
     prompt: Optional[Union[str, Any]] = None
