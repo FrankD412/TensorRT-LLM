@@ -70,7 +70,7 @@ class StatsKeeper:
         if request_perf_item.response_is_final:
             self.num_complete = self.num_complete + 1
 
-    def generate_statistics_summary(self) -> None:
+    def generate_statistics_summary(self) -> BenchmarkStatistics:
         """Generate summary statistics from internally stored statistics.
 
         Returns:
