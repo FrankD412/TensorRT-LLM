@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from tensorrt_llm.bench.build.dataclasses import ModelConfig
+from tensorrt_llm.bench.build.utils import get_device_memory
 from tensorrt_llm.llmapi.llm_utils import QuantConfig
 from tensorrt_llm.logger import logger
 from tensorrt_llm.quantization.mode import QuantAlgo
-from tensorrt_llm.bench.build.utils import get_device_memory
 
 BYTES_PER_ELEM: dict[QuantAlgo, float] = {
     QuantAlgo.NO_QUANT: 2.0,
@@ -16,7 +16,8 @@ BYTES_PER_ELEM: dict[QuantAlgo, float] = {
 }
 
 
-def get_model_config(model_name: str, model_path: Optional[Path] = None) -> ModelConfig:
+def get_model_config(model_name: str,
+                     model_path: Optional[Path] = None) -> ModelConfig:
     """ Obtain the model-related parameters from Hugging Face.
     Args:
         model_name (str): Huggingface model name.
