@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from functools import partial
 from pathlib import Path
 
@@ -474,10 +473,10 @@ def throughput_command(
         report_utility.report_statistics()
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt, exiting benchmark...")
-    except Exception:
+    except Exception as e:
         import traceback
         logger.error(f"Error during benchmarking:\n{traceback.format_exc()}")
-        sys.exit(1)
+        raise e
     finally:
         if llm is not None:
             llm.shutdown()
