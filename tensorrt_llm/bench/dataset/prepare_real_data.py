@@ -10,12 +10,10 @@ from datasets import load_dataset
 from PIL import Image
 from pydantic import BaseModel, model_validator
 
-from tensorrt_llm.bench.dataset.utils import (
-    generate_multimodal_dataset,
-    generate_text_dataset,
-    get_norm_dist_lengths,
-    write_dataset_to_file,
-)
+from tensorrt_llm.bench.dataset.utils import (generate_multimodal_dataset,
+                                              generate_text_dataset,
+                                              get_norm_dist_lengths,
+                                              write_dataset_to_file)
 
 
 def validate_output_len_dist(ctx, param, value):
@@ -28,13 +26,11 @@ def validate_output_len_dist(ctx, param, value):
     else:
         raise AssertionError(
             "Incorrect specification for --output-len-dist. Correct format: "
-            "--output-len-dist <output_len_mean>,<output_len_stdev>"
-        )
+            "--output-len-dist <output_len_mean>,<output_len_stdev>")
 
 
 class DatasetConfig(BaseModel):
     """Dataset configurations."""
-
     """Name of the dataset on HuggingFace."""
     name: str
     """Config name of the dataset if existing."""
@@ -55,7 +51,8 @@ class DatasetConfig(BaseModel):
     @model_validator(mode="after")
     def check_prompt(self) -> "DatasetConfig":
         if self.prompt_key and self.prompt:
-            raise AssertionError("--prompt-key and --prompt cannot be set at the same time.")
+            raise AssertionError(
+                "--prompt-key and --prompt cannot be set at the same time.")
         if (not self.prompt_key) and (not self.prompt):
             raise AssertionError("Either --prompt-key or --prompt must be set.")
         return self
@@ -74,8 +71,7 @@ class DatasetConfig(BaseModel):
             assert self.prompt_key in req, (
                 f"Dataset {self.name} does not have key '{self.prompt_key}'. "
                 "Please set --prompt-key to one of the available keys: "
-                f"{req.keys()}"
-            )
+                f"{req.keys()}")
             return req[self.prompt_key]
         else:
             return self.prompt
@@ -85,18 +81,17 @@ class DatasetConfig(BaseModel):
         assert self.input_key in req, (
             f"Dataset {self.name} does not have key '{self.input_key}'. "
             "Please set --input-key to one of the available keys: "
-            f"{req.keys()}"
-        )
+            f"{req.keys()}")
         return req[self.input_key]
 
     def get_images(self, req):
         """Get the images from the given request."""
-        image_keys = [self.image_key] + [f"{self.image_key}_{i}" for i in range(1, 8)]
+        image_keys = [self.image_key
+                      ] + [f"{self.image_key}_{i}" for i in range(1, 8)]
         assert any(key in req for key in image_keys), (
             f"Dataset {self.name} does not have key '{self.image_key}'. "
             "Please set --dataset-image-key to one of the available keys: "
-            f"{req.keys()}"
-        )
+            f"{req.keys()}")
         images = []
         for key in image_keys:
             if key in req and req[key] is not None:
@@ -111,13 +106,11 @@ class DatasetConfig(BaseModel):
                 "1. Define output length through --output-len-dist.\n"
                 f"2. If the dataset {self.name} has key for golden output and "
                 "you wish to set output length to the length of the golden "
-                "output, set --output-key."
-            )
+                "output, set --output-key.")
         assert self.output_key in req, (
             f"Dataset {self.name} does not have key '{self.output_key}'. "
             "Please set --output-key to one of the available keys: "
-            f"{req.keys()}"
-        )
+            f"{req.keys()}")
         return req[self.output_key]
 
 
@@ -140,8 +133,7 @@ def load_dataset_from_hf(dataset_config: DatasetConfig):
                 split=dataset_config.split,
                 streaming=True,
                 trust_remote_code=True,
-            )
-        )
+            ))
     except ValueError as e:
         if "Config" in e:
             e += "\n Please add the config name to the dataset config yaml."
@@ -153,18 +145,27 @@ def load_dataset_from_hf(dataset_config: DatasetConfig):
 
 
 @click.command(name="real-dataset")
-@click.option("--dataset-name", required=True, type=str, help="Dataset name in HuggingFace.")
+@click.option("--dataset-name",
+              required=True,
+              type=str,
+              help="Dataset name in HuggingFace.")
 @click.option(
     "--dataset-config-name",
     type=str,
     default=None,
     help="Dataset config name in HuggingFace (if exists).",
 )
-@click.option("--dataset-split", type=str, required=True, help="Split of the dataset to use.")
-@click.option("--dataset-input-key", type=str, help="The dataset dictionary key for input.")
-@click.option(
-    "--dataset-image-key", type=str, default="image", help="The dataset dictionary key for images."
-)
+@click.option("--dataset-split",
+              type=str,
+              required=True,
+              help="Split of the dataset to use.")
+@click.option("--dataset-input-key",
+              type=str,
+              help="The dataset dictionary key for input.")
+@click.option("--dataset-image-key",
+              type=str,
+              default="image",
+              help="The dataset dictionary key for images.")
 @click.option(
     "--dataset-prompt-key",
     type=str,
@@ -187,13 +188,15 @@ def load_dataset_from_hf(dataset_config: DatasetConfig):
     "--num-requests",
     type=int,
     default=None,
-    help="Number of requests to be generated. Will be capped to min(dataset.num_rows, num_requests).",
+    help=
+    "Number of requests to be generated. Will be capped to min(dataset.num_rows, num_requests).",
 )
 @click.option(
     "--max-input-len",
     type=int,
     default=None,
-    help="Maximum input sequence length for a given request. This will be used to filter out the "
+    help=
+    "Maximum input sequence length for a given request. This will be used to filter out the "
     "requests with long input sequence length. Default will include all the requests.",
 )
 @click.option(
@@ -201,16 +204,18 @@ def load_dataset_from_hf(dataset_config: DatasetConfig):
     type=str,
     default=None,
     callback=validate_output_len_dist,
-    help="Output length distribution. Default will be the length of the golden output from "
+    help=
+    "Output length distribution. Default will be the length of the golden output from "
     "the dataset. Format: <output_len_mean>,<output_len_stdev>. E.g. 100,10 will randomize "
     "the output length with mean=100 and variance=10.",
 )
 @click.pass_obj
 def real_dataset(root_args, **kwargs):
     """Prepare dataset from real dataset."""
-    dataset_config = DatasetConfig(
-        **{k[8:]: v for k, v in kwargs.items() if k.startswith("dataset_")}
-    )
+    dataset_config = DatasetConfig(**{
+        k[8:]: v
+        for k, v in kwargs.items() if k.startswith("dataset_")
+    })
 
     input_ids = []
     input_lens = []
@@ -237,7 +242,8 @@ def real_dataset(root_args, **kwargs):
                     if isinstance(image, str):
                         image_paths.append(image)
                     elif isinstance(image, Image.Image):
-                        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+                        with tempfile.NamedTemporaryFile(
+                                suffix=".jpg", delete=False) as tmp_file:
                             logging.debug(f"Saving image to {tmp_file.name}")
                             image = image.convert("RGB")
                             image.save(tmp_file, "JPEG")
@@ -249,7 +255,8 @@ def real_dataset(root_args, **kwargs):
             multimodal_image_paths.append(image_paths)
         else:
             # text input
-            prompt = dataset_config.get_prompt(req) + " " + dataset_config.get_input(req)
+            prompt = dataset_config.get_prompt(
+                req) + " " + dataset_config.get_input(req)
             logging.debug(f"Input sequence: {prompt}")
             line = root_args.tokenizer.encode(prompt)
             if kwargs["max_input_len"] and len(line) > kwargs["max_input_len"]:
@@ -259,7 +266,10 @@ def real_dataset(root_args, **kwargs):
 
             # output if fetch from golden
             if kwargs["output_len_dist"] is None:
-                output_lens.append(len(root_args.tokenizer.encode(dataset_config.get_output(req))))
+                output_lens.append(
+                    len(
+                        root_args.tokenizer.encode(
+                            dataset_config.get_output(req))))
 
         # lora task id
         task_id = root_args.task_id
@@ -272,10 +282,9 @@ def real_dataset(root_args, **kwargs):
         if kwargs["num_requests"] and req_cnt >= kwargs["num_requests"]:
             break
 
-    if (
-        kwargs["num_requests"]
-        and (len(input_ids) if modality is None else len(multimodal_texts)) < kwargs["num_requests"]
-    ):
+    if (kwargs["num_requests"]
+            and (len(input_ids) if modality is None else len(multimodal_texts))
+            < kwargs["num_requests"]):
         logging.warning(
             f"Number of requests={len(input_ids) if modality is None else len(multimodal_texts)} is"
             f" smaller than the num-requests user set={kwargs['num_requests']}."
@@ -297,9 +306,8 @@ def real_dataset(root_args, **kwargs):
 
     dataset_generator = None
     if modality is not None:
-        dataset_generator = partial(
-            generate_multimodal_dataset, multimodal_texts, multimodal_image_paths
-        )
+        dataset_generator = partial(generate_multimodal_dataset,
+                                    multimodal_texts, multimodal_image_paths)
     else:
         dataset_generator = partial(generate_text_dataset, input_ids)
     write_dataset_to_file(dataset_generator(output_lens), root_args.output)

@@ -20,7 +20,8 @@ from pydantic import BaseModel, model_validator
 from transformers import AutoTokenizer
 
 from tensorrt_llm.bench.dataset.prepare_real_data import real_dataset
-from tensorrt_llm.bench.dataset.prepare_synthetic_data import token_norm_dist, token_unif_dist
+from tensorrt_llm.bench.dataset.prepare_synthetic_data import (token_norm_dist,
+                                                               token_unif_dist)
 
 
 class RootArgs(BaseModel):
@@ -36,14 +37,14 @@ class RootArgs(BaseModel):
     def validate_tokenizer(self):
         try:
             tokenizer = AutoTokenizer.from_pretrained(
-                self.tokenizer, padding_side="left", trust_remote_code=self.trust_remote_code
-            )
+                self.tokenizer,
+                padding_side="left",
+                trust_remote_code=self.trust_remote_code)
         except EnvironmentError as e:
             raise ValueError(
                 "Cannot find a tokenizer from the given string because of "
                 f"{e}\nPlease set tokenizer to the directory that contains "
-                "the tokenizer, or set to a model name in HuggingFace."
-            )
+                "the tokenizer, or set to a model name in HuggingFace.")
         tokenizer.pad_token = tokenizer.eos_token
         self.tokenizer = tokenizer
 
@@ -51,18 +52,29 @@ class RootArgs(BaseModel):
 
 
 @click.group(name="dataset")
-@click.option(
-    "--output", type=str, help="Output json filename.", default="preprocessed_dataset.json"
-)
-@click.option(
-    "--random-seed", required=False, type=int, help="random seed for token_ids", default=420
-)
+@click.option("--output",
+              type=str,
+              help="Output json filename.",
+              default="preprocessed_dataset.json")
+@click.option("--random-seed",
+              required=False,
+              type=int,
+              help="random seed for token_ids",
+              default=420)
 @click.option("--task-id", type=int, default=-1, help="LoRA task id")
-@click.option("--rand-task-id", type=int, default=None, nargs=2, help="Random LoRA Tasks")
-@click.option("--lora-dir", type=str, default=None, help="Directory containing LoRA adapters")
-@click.option(
-    "--log-level", default="info", type=click.Choice(["info", "debug"]), help="Logging level."
-)
+@click.option("--rand-task-id",
+              type=int,
+              default=None,
+              nargs=2,
+              help="Random LoRA Tasks")
+@click.option("--lora-dir",
+              type=str,
+              default=None,
+              help="Directory containing LoRA adapters")
+@click.option("--log-level",
+              default="info",
+              type=click.Choice(["info", "debug"]),
+              help="Logging level.")
 @click.option(
     "--trust-remote-code",
     is_flag=True,
