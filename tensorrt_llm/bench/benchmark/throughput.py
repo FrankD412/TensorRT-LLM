@@ -256,6 +256,13 @@ from tensorrt_llm.sampling_params import SamplingParams
     help="Path where iteration logging is written to.",
 )
 @optgroup.option(
+    "--iteration_log_port",
+    type=int,
+    required=False,
+    default=None,
+    help="Port for iteration logging.",
+)
+@optgroup.option(
     "--output_json",
     type=click.Path(dir_okay=False,
                     writable=True,

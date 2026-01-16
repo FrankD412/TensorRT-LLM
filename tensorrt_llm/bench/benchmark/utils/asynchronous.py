@@ -7,7 +7,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Set, Tuple
 
 import tqdm
-from zmq import PUSH
+from zmq import PUB
 from zmq.asyncio import Context
 
 from tensorrt_llm import SamplingParams
@@ -151,8 +151,8 @@ class LlmManager:
         try:
             # Create a ZMQ context and socket for sending data
             context = Context.instance(io_threads=1)
-            socket = context.socket(PUSH)
-            socket.connect(iteration_addr)
+            socket = context.socket(PUB)
+            socket.bind(iteration_addr)
 
             # Wait until a request is seen before proceeding
             await self.request_seen.wait()

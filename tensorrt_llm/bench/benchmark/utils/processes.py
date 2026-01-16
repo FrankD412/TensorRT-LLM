@@ -6,7 +6,7 @@ from multiprocessing.synchronize import Event as MpEvent
 from pathlib import Path
 from typing import Optional, Union
 
-from zmq import PULL, Context
+from zmq import SUB, SUBSCRIBE, Context
 
 from tensorrt_llm import logger
 
@@ -34,7 +34,9 @@ class IterationWriter:
             # Send data using ZMQ PUSH socket to writer.full_address
     """
 
-    def __init__(self, log_path: Optional[Path] = None) -> None:
+    def __init__(self,
+                 log_path: Optional[Path] = None,
+                 port: Optional[int] = None) -> None:
         """Initialize the IterationWriter with network communication parameters.
 
         Sets up the basic configuration for the logging system. The actual logging process
@@ -47,8 +49,12 @@ class IterationWriter:
                                      logging is disabled and capture() will be a no-op.
         """
         self.log_path = log_path
+        self.port = port
+
         self._socket_path = Path(
-            tempfile.mkstemp()[1]) if log_path is not None else None
+            tempfile.mkstemp(prefix="iteration_logger.", suffix=".sock")[1],
+            delete=False,
+        ) if log_path is not None else None
 
     @property
     def full_address(self) -> Union[str, None]:
@@ -59,7 +65,7 @@ class IterationWriter:
         any processes that want to send data to be logged (PUSH socket).
 
         Returns:
-            Union[str, None]: A ZMQ IPC URL (e.g., "ipc://localhost:5555") if log_path
+            Union[str, None]: A ZMQ IPC socket path if log_path
                             is provided, otherwise None to indicate logging is disabled.
         """
         if self._socket_path is not None:
@@ -138,8 +144,9 @@ class IterationWriter:
             # Create a ZeroMQ context and socket for inter-process communication
             logger.debug(f"Iteration logging: Binding to {address}...")
             context = Context(io_threads=1)
-            socket = context.socket(PULL)
-            socket.bind(address)
+            socket = context.socket(SUB)
+            socket.connect(address)
+            socket.setsockopt_string(SUBSCRIBE, "")  # Subscribe to all topics
 
             # Open the log file for writing and start listening for messages
             logger.debug(
