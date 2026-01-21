@@ -36,6 +36,8 @@ class GeneralExecSettings(BaseModel):
         default=-1, description="End-of-sequence token ID, -1 to disable EOS")
     iteration_log: Optional[Path] = Field(
         default=None, description="Path where iteration logging is written")
+    iteration_port: Optional[int] = Field(
+        default=None, description="ZMQ publisher port for iteration logging")
     kv_cache_percent: float = Field(
         default=0.90,
         validation_alias=AliasChoices("kv_cache_percent",

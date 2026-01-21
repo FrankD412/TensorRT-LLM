@@ -124,8 +124,8 @@ class IterationWriter:
                 # Send data to writer.full_address using ZMQ PUSH socket
                 # Data will be logged in a separate process
         """
-        if self._socket_path is None:
-            logger.info("No log path provided, skipping logging.")
+        if self.log_path is None:
+            logger.info("No log path provided, skipping iteration logging.")
             yield
         else:
             logger.info(f"Logging iterations to {self.log_path}...")
