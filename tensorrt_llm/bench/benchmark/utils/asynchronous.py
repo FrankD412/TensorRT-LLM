@@ -7,7 +7,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Set, Tuple
 
 import tqdm
-from zmq import PUB
+from zmq import Socket
 from zmq.asyncio import Context
 
 from tensorrt_llm import SamplingParams
@@ -17,6 +17,22 @@ from tensorrt_llm.bench.dataclasses.reporting import PerfItemTuple, StatsKeeper
 from tensorrt_llm.executor.postproc_worker import PostprocParams
 from tensorrt_llm.llmapi.llm import RequestOutput
 from tensorrt_llm.logger import logger
+
+
+def get_socket(address: Optional[str], zmq_context: Context) -> Socket:
+    """Get a ZMQ socket for the given address.
+
+    Args:
+        address (Optional[str]): The address to get the socket for.
+        zmq_context (Context): The ZMQ context to use.
+
+    Returns:
+        Socket: ZMQ socket.
+
+    Raises:
+        ValueError: If no address is provided.
+        ValueError: If the address is invalid.
+    """
 
 
 class LlmManager:
@@ -151,8 +167,7 @@ class LlmManager:
         try:
             # Create a ZMQ context and socket for sending data
             context = Context.instance(io_threads=1)
-            socket = context.socket(PUB)
-            socket.bind(iteration_addr)
+            socket = get_socket(iteration_addr, context)
 
             # Wait until a request is seen before proceeding
             await self.request_seen.wait()

@@ -256,11 +256,11 @@ from tensorrt_llm.sampling_params import SamplingParams
     help="Path where iteration logging is written to.",
 )
 @optgroup.option(
-    "--iteration_log_port",
+    "--iteration_port",
     type=int,
     required=False,
     default=None,
-    help="Port for iteration logging.",
+    help="ZMQ publisher port for iteration logging.",
 )
 @optgroup.option(
     "--output_json",
@@ -410,6 +410,7 @@ def throughput_command(
     # LlmArgs
     exec_settings["extra_llm_api_options"] = params.pop("extra_llm_api_options")
     exec_settings["iteration_log"] = options.iteration_log
+    exec_settings["iteration_port"] = options.iteration_port
 
     # Construct the runtime configuration dataclass.
     runtime_config = RuntimeConfig(**exec_settings)

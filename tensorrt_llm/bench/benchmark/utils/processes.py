@@ -1,14 +1,44 @@
 import os
-import tempfile
 from contextlib import contextmanager
 from multiprocessing import Event, Process
 from multiprocessing.synchronize import Event as MpEvent
 from pathlib import Path
 from typing import Optional, Union
 
-from zmq import SUB, SUBSCRIBE, Context
+from zmq import PULL, SUB, SUBSCRIBE, Context, Socket
 
 from tensorrt_llm import logger
+
+
+def get_socket(address: Optional[str], zmq_context: Context) -> Socket:
+    """Get a ZMQ socket for the given address.
+
+    Args:
+        address (Optional[str]): The address to get the socket for.
+        zmq_context (Context): The ZMQ context to use.
+
+    Returns:
+        Socket: ZMQ socket.
+
+    Raises:
+        ValueError: If no address is provided.
+        ValueError: If the address is invalid.
+    """
+    socket = None
+
+    if address is None:
+        raise ValueError("No log path provided, skipping logging.")
+    elif "ipc" in address:
+        socket = zmq_context.socket(PULL)
+        socket.connect(address)
+    elif "tcp" in address:
+        socket = zmq_context.socket(SUB)
+        socket.bind(address)
+        socket.setsockopt_string(SUBSCRIBE, "iterations")
+    else:
+        raise ValueError(f"Invalid address: {address}")
+
+    return socket
 
 
 # The IterationWriter class implements a multi-process logging system that captures and writes
@@ -51,11 +81,6 @@ class IterationWriter:
         self.log_path = log_path
         self.port = port
 
-        self._socket_path = Path(
-            tempfile.mkstemp(prefix="iteration_logger.", suffix=".sock")[1],
-            delete=False,
-        ) if log_path is not None else None
-
     @property
     def full_address(self) -> Union[str, None]:
         """Construct the complete ZMQ IPC address string.
@@ -68,8 +93,11 @@ class IterationWriter:
             Union[str, None]: A ZMQ IPC socket path if log_path
                             is provided, otherwise None to indicate logging is disabled.
         """
-        if self._socket_path is not None:
-            return f"ipc://{self._socket_path}"
+        if self.log_path is not None:
+            protocol = "tcp" if self.port is not None else "ipc"
+            host = "localhost" if self.port is not None else "iteration_logger"
+            port = f":{self.port}" if self.port is not None else ""
+            return f"{protocol}://{host}{port}"
         else:
             return None
 
@@ -144,9 +172,7 @@ class IterationWriter:
             # Create a ZeroMQ context and socket for inter-process communication
             logger.debug(f"Iteration logging: Binding to {address}...")
             context = Context(io_threads=1)
-            socket = context.socket(SUB)
-            socket.connect(address)
-            socket.setsockopt_string(SUBSCRIBE, "")  # Subscribe to all topics
+            socket = get_socket(address, context)
 
             # Open the log file for writing and start listening for messages
             logger.debug(

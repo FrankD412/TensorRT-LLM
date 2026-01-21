@@ -64,7 +64,7 @@ class GeneralExecSettings(BaseModel):
 
     @property
     def iteration_writer(self) -> IterationWriter:
-        return IterationWriter(self.iteration_log)
+        return IterationWriter(self.iteration_log, self.iteration_port)
 
     @property
     def model_type(self) -> str:
