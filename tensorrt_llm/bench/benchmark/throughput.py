@@ -246,23 +246,6 @@ from tensorrt_llm.sampling_params import SamplingParams
     help="Path where report is written to.",
 )
 @optgroup.option(
-    "--iteration_log",
-    type=click.Path(dir_okay=False,
-                    writable=True,
-                    readable=False,
-                    path_type=Path,
-                    resolve_path=True),
-    required=False,
-    help="Path where iteration logging is written to.",
-)
-@optgroup.option(
-    "--iteration_port",
-    type=int,
-    required=False,
-    default=None,
-    help="ZMQ publisher port for iteration logging.",
-)
-@optgroup.option(
     "--output_json",
     type=click.Path(dir_okay=False,
                     writable=True,
@@ -294,6 +277,25 @@ from tensorrt_llm.sampling_params import SamplingParams
     default="guaranteed_no_evict",
     help=
     "KV cache scheduler policy: guaranteed_no_evict prevents request eviction, max_utilization optimizes for throughput.",
+)
+@optgroup.group("Iteration Logging Options",
+                help="Options for logging iteration data.")
+@optgroup.option(
+    "--iteration_log",
+    type=click.Path(dir_okay=False,
+                    writable=True,
+                    readable=False,
+                    path_type=Path,
+                    resolve_path=True),
+    required=False,
+    help="Path where iteration logging is written to.",
+)
+@optgroup.option(
+    "--iteration_port",
+    type=int,
+    required=False,
+    default=None,
+    help="ZMQ publisher port for iteration logging.",
 )
 @click.pass_obj
 def throughput_command(
