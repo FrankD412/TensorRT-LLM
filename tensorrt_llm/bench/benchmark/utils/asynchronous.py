@@ -7,7 +7,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Set, Tuple
 
 import tqdm
-from zmq import Socket
+from zmq import PUB, PUSH, Socket
 from zmq.asyncio import Context
 
 from tensorrt_llm import SamplingParams
@@ -33,6 +33,20 @@ def get_socket(address: Optional[str], zmq_context: Context) -> Socket:
         ValueError: If no address is provided.
         ValueError: If the address is invalid.
     """
+    socket = None
+
+    if address is None:
+        raise ValueError(
+            "No iteration log address provided, skipping iteration logging.")
+    elif "tcp" in address:
+        socket = zmq_context.socket(PUB)
+    elif "ipc" in address:
+        socket = zmq_context.socket(PUSH)
+    else:
+        raise ValueError(f"Invalid address: {address}")
+
+    socket.connect(address)
+    return socket
 
 
 class LlmManager:
