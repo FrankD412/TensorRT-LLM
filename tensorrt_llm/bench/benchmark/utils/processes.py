@@ -34,7 +34,7 @@ def get_socket(address: Optional[str], zmq_context: Context) -> Socket:
     elif "tcp" in address:
         socket = zmq_context.socket(SUB)
         socket.bind(address)
-        socket.setsockopt_string(SUBSCRIBE, "iterations")
+        socket.setsockopt_string(SUBSCRIBE, "")
     else:
         raise ValueError(f"Invalid address: {address}")
 
