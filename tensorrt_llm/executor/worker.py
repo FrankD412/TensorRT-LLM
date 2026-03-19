@@ -278,6 +278,18 @@ def worker_main(
     logger_debug(f"Worker {mpi_rank()} ready to setup backend...\n", "green")
 
     try:
+        # GMS patch injection — runs on all MPI ranks before model loading
+        if os.environ.get("TRTLLM_GMS_ENABLED", "").lower() in ("1", "true"):
+            try:
+                from gpu_memory_service.integrations.trtllm.model_loader import (
+                    patch_model_loader, set_gms_enabled)
+            except ImportError as e:
+                raise ImportError(
+                    "TRTLLM_GMS_ENABLED is set but gpu_memory_service is not installed. "
+                    "Install it or unset TRTLLM_GMS_ENABLED.") from e
+            patch_model_loader()
+            set_gms_enabled(True)
+
         worker: GenerationExecutorWorker = worker_cls(
             engine,
             executor_config,
