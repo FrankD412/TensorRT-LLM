@@ -95,6 +95,10 @@ methods:
         annotation: Optional[str]
         default: null
         status: prototype
+      loader:
+        annotation: Literal['disk', 'gms']
+        default: disk
+        status: beta
       mm_encoder_only:
         annotation: bool
         default: False

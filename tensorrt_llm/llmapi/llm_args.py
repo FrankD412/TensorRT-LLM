@@ -3385,6 +3385,16 @@ class TorchLlmArgs(BaseLlmArgs):
         status="prototype",
     )
 
+    loader: Literal['disk', 'gms'] = Field(
+        default='disk',
+        description=
+        ("The weight loader backend to use. 'disk' loads weights from the checkpoint "
+         "directory on every startup. 'gms' uses GPU Memory Service to cache weights "
+         "in GPU memory across restarts, reducing load time after the first run. "
+         "Requires the gpu_memory_service package."),
+        status="beta",
+    )
+
     kv_connector_config: Optional[KvCacheConnectorConfig] = Field(
         default=None,
         description="The config for KV cache connector.",

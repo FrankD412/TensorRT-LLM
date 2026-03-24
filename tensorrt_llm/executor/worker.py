@@ -282,14 +282,18 @@ def worker_main(
 
     try:
         # GMS patch injection — runs on all MPI ranks before model loading
-        if os.environ.get("TRTLLM_GMS_ENABLED", "").lower() in ("1", "true"):
+        _gms_via_args = (llm_args is not None
+                         and getattr(llm_args, 'loader', 'disk') == 'gms')
+        _gms_via_env = os.environ.get("TRTLLM_GMS_ENABLED",
+                                      "").lower() in ("1", "true")
+        if _gms_via_args or _gms_via_env:
             try:
                 from gpu_memory_service.integrations.trtllm.model_loader import (
                     patch_model_loader, set_gms_enabled)
             except ImportError as e:
                 raise ImportError(
-                    "TRTLLM_GMS_ENABLED is set but gpu_memory_service is not installed. "
-                    "Install it or unset TRTLLM_GMS_ENABLED.") from e
+                    "loader='gms' is set but gpu_memory_service is not installed. "
+                    "Install gpu_memory_service or use loader='disk'.") from e
             patch_model_loader()
             set_gms_enabled(True)
 
