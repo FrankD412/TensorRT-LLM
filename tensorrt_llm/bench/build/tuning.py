@@ -68,7 +68,18 @@ def calc_engine_setting(
     # Number of GPU used for this run.
     n_gpus = tp_size * pp_size
     # Total engine size.
-    engine_size = model_config.param_count * byte_per_elem / (1024**3)
+    # For pre-quantized checkpoints (e.g., NVFP4 safetensors stored as packed U8),
+    # model_size_bytes already reflects the true on-disk byte count. Applying
+    # byte_per_elem again would double-count the compression. Use the dtype-weighted
+    # byte count directly when the checkpoint is stored more compactly than BF16.
+    if (model_config.model_size_bytes is not None
+            and model_config.model_size_bytes < model_config.param_count * 2.0):
+        engine_size = model_config.model_size_bytes / (1024**3)
+        logger.info(
+            "Pre-quantized checkpoint detected. Using dtype-weighted model size "
+            f"({engine_size:.2f} GB) instead of param_count * byte_per_elem.")
+    else:
+        engine_size = model_config.param_count * byte_per_elem / (1024**3)
     total_gpu_memory = get_device_memory() * n_gpus
     # Available memory to allocate KV cache.
     available_memory = total_gpu_memory - engine_size

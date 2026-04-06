@@ -15,6 +15,28 @@ import struct
 
 from tensorrt_llm._torch.pyexecutor.config_utils import load_pretrained_config
 
+# Bytes per stored element for each safetensors dtype.
+# Sub-byte types use the packed byte width (e.g., FP4 packed as U8 = 0.5 bytes per logical element).
+SAFETENSORS_DTYPE_BYTES: dict = {
+    "F64": 8.0,
+    "F32": 4.0,
+    "F16": 2.0,
+    "BF16": 2.0,
+    "I16": 2.0,
+    "U16": 2.0,
+    "F8_E4M3": 1.0,
+    "F8_E5M2": 1.0,
+    "I8": 1.0,
+    "U8": 1.0,
+    "I32": 4.0,
+    "U32": 4.0,
+    "I64": 8.0,
+    "U64": 8.0,
+    "I4": 0.5,
+    "U4": 0.5,
+    "F4_E2M1": 0.5,  # NVFP4
+}
+
 
 def parse_safetensors_file_metadata(model_path, filename):
 
@@ -119,6 +141,7 @@ class ModelConfig(BaseModel):
     name: str
     model_type: str
     param_count: int
+    model_size_bytes: Optional[float] = Field(default=None, exclude=True)
     num_hidden_layers: int = Field(validation_alias=AliasChoices(
         "num_hidden_layers",
         "n_layer",
@@ -179,16 +202,31 @@ class ModelConfig(BaseModel):
         return self
 
     @classmethod
+    def _get_safetensors_counts(cls, model_hf_name, hf_model_path):
+        """ Read parameter count and dtype-weighted model size from HF safetensors metadata.
+
+        Returns:
+            Tuple[int, Optional[float]]: (param_count, model_size_bytes).
+            model_size_bytes accounts for the packed byte width of each dtype.
+            Returns (param_count, None) for GPT-J which has no safetensors.
+        """
+        if model_hf_name == "EleutherAI/gpt-j-6b":  # GPT-J repo doesn't use safetensor format.
+            return 6053381344, None
+        model_name_or_path = hf_model_path or model_hf_name
+        metadata = get_safetensors_metadata(model_name_or_path)
+        param_count = sum(metadata.parameter_count.values())
+        assert param_count, \
+            f"Can't get valid parameter count for model: {model_name_or_path}."
+        model_size_bytes = sum(
+            count * SAFETENSORS_DTYPE_BYTES.get(dtype, 2.0)
+            for dtype, count in metadata.parameter_count.items())
+        return param_count, model_size_bytes
+
+    @classmethod
     def get_param_count(cls, model_hf_name, hf_model_path):
         """ Read the parameter count from HF safetensor metadata. """
-        if model_hf_name == "EleutherAI/gpt-j-6b":  # GPT-J repo doesn't use safetensor format.
-            param_count = 6053381344
-        else:
-            model_name_or_path = hf_model_path or model_hf_name
-            metadata = get_safetensors_metadata(model_name_or_path)
-            param_count = sum(metadata.parameter_count.values())
-        assert param_count, f"Can't get valid parameter count for model: {model_name_or_path}."
-
+        param_count, _ = cls._get_safetensors_counts(model_hf_name,
+                                                     hf_model_path)
         return param_count
 
     @classmethod
@@ -197,9 +235,12 @@ class ModelConfig(BaseModel):
                                                    or model_hf_name,
                                                    trust_remote_code=True)
         hf_config = pretrained_config.to_dict()
-        param_count = cls.get_param_count(model_hf_name, hf_model_path)
-
-        return cls(name=model_hf_name, param_count=param_count, **hf_config)
+        param_count, model_size_bytes = cls._get_safetensors_counts(
+            model_hf_name, hf_model_path)
+        return cls(name=model_hf_name,
+                   param_count=param_count,
+                   model_size_bytes=model_size_bytes,
+                   **hf_config)
 
     def extra_model_cache_in_gb(self, bytes_per_elem, target_seq_len=None):
         return 0
