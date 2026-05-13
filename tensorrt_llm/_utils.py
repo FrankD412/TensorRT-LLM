@@ -1516,22 +1516,23 @@ class EnergyMonitor:
                 handles.append(nvmlDeviceGetHandleByIndex(int(device_id)))
         return handles
 
-    def __enter__(self):
+    def mark_start(self) -> None:
+        """Record the GPU energy baseline — can be called again to reset the window."""
         if self._enabled:
             try:
                 self._start_energies = [
                     nvmlDeviceGetTotalEnergyConsumption(handle)
                     for handle in self._handles
                 ]
+                self._total_energy = None
             except NVMLError as e:
                 logger.warning(f"Failed to read GPU energy on start: {e}")
                 self._start_energies = None
-        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self._enabled or self._start_energies is None:
-            return False
-
+    def mark_stop(self) -> None:
+        """Compute energy delta from the last mark_start — no-op if already computed."""
+        if not self._enabled or self._start_energies is None or self._total_energy is not None:
+            return
         try:
             total_energy = 0.0
             for handle, start_energy in zip(self._handles,
@@ -1543,11 +1544,17 @@ class EnergyMonitor:
                                   self._device_count)
         except NVMLError as e:
             logger.warning(f"Failed to read GPU energy on stop: {e}")
-        finally:
-            try:
-                nvmlShutdown()
-            except NVMLError:
-                pass
+
+    def __enter__(self):
+        self.mark_start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.mark_stop()
+        try:
+            nvmlShutdown()
+        except NVMLError:
+            pass
         return False
 
     def get_current_energy(self):

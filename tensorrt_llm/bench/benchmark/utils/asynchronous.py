@@ -313,15 +313,19 @@ async def semaphore_guard(semaphore: Optional[asyncio.Semaphore] = None):
             semaphore.release()
 
 
-async def enqueue_messages(backend: LlmManager,
-                           requests: List[InferenceRequest],
-                           sampling_params: SamplingParams,
-                           post_proc_params: PostprocParams,
-                           submit_finished: asyncio.Event) -> None:
+async def enqueue_messages(
+        backend: LlmManager,
+        requests: List[InferenceRequest],
+        sampling_params: SamplingParams,
+        post_proc_params: PostprocParams,
+        submit_finished: asyncio.Event,
+        first_request_event: Optional[asyncio.Event] = None) -> None:
     num_requests = 0
     submit_start = time.perf_counter_ns()
     for request in requests:
         await backend.enqueue(request, sampling_params, post_proc_params)
+        if num_requests == 0 and first_request_event is not None:
+            first_request_event.set()
         num_requests += 1
     submit_time = (time.perf_counter_ns() - submit_start) * 1.0e-9
     logger.info(
@@ -357,14 +361,20 @@ async def async_benchmark(
     try:
         backend.run(iteration_addr=iteration_log_addr)
 
+        first_request_event = asyncio.Event()
         enqueue_task = asyncio.create_task(
             enqueue_messages(backend, requests, sampling_params,
-                             post_proc_params, submit_finished))
+                             post_proc_params, submit_finished,
+                             first_request_event))
 
         logger.info("Starting benchmark...")
         with EnergyMonitor(llm.args.parallel_config.world_size) as monitor:
             pbar = tqdm.tqdm(total=len(requests), desc="Benchmarking")
             finished_requests = 0
+
+            if requests:
+                await first_request_event.wait()
+                monitor.mark_start()
 
             while not submit_finished.is_set(
             ) or backend.busy or not outbox.empty():
@@ -372,8 +382,10 @@ async def async_benchmark(
                     item: PerfItemTuple = await asyncio.wait_for(outbox.get(),
                                                                  timeout=1.0)
                     statistics.register_request_perf_item(item)
-                    pbar.update(1)
                     finished_requests += 1
+                    pbar.update(1)
+                    if finished_requests == len(requests):
+                        monitor.mark_stop()
                 except asyncio.TimeoutError:
                     logger.debug("No items in queue. Continuing.")
 
